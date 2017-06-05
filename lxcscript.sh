@@ -1,3 +1,5 @@
+#!/bin/bash
+
 IPOP_HOME="/home/ubuntu/ipop"
 IPOP_TINCAN="$IPOP_HOME/ipop-tincan"
 IPOP_CONTROLLER="controller.Controller"
@@ -6,12 +8,15 @@ TINCAN="./ipop-tincan"
 CONTROLLER="./Controllers"
 DEFAULT_LXC_PACKAGES='python psmisc iperf'
 DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
+DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
+DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
+
 if [ -e $HELP_FILE ]; then
     min=$(cat $HELP_FILE | grep MIN | awk '{print $2}')
     max=$(cat $HELP_FILE | grep MAX | awk '{print $2}')
     nr_vnodes=$(cat $HELP_FILE | grep NR_VNODES | awk '{print $2}')
 else
-    echo -e "No of containers to be created:: "
+    echo -e "No of containers to be created::" 
     read max
     echo -e "MIN 1\nMAX $max\nNR_VNODES $max" > $HELP_FILE
 fi
@@ -20,8 +25,8 @@ function options()
 {
     read -p 'Enter from the following options:    
    install                        : install/prepare containers
-   start                          : create containers
-   restart                        : restart containers
+   create                         : create and start containers
+   start                          : restart containers
    stop                           : stop containers
    del                            : delete containers
    run                            : To run IPOP node
@@ -45,12 +50,19 @@ while true; do
             sudo apt-get -y install lxc
             # Install ubuntu OS in the lxc-container
             sudo lxc-create -n default -t ubuntu
-            sudo chroot /var/lib/lxc/default/rootfs apt-get update
+            sudo chroot /var/lib/lxc/default/rootfs apt-get -y update
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install $DEFAULT_LXC_PACKAGES
-            sudo chroot /var/lib/lxc/default/rootfs apt-get install software-properties-common python-software-properties
-            sudo chroot /var/lib/lxc/default/rootfs add-apt-repository ppa:ubuntu-toolchain-r/test
-            sudo chroot /var/lib/lxc/default/rootfs apt-get update
-            sudo chroot /var/lib/lxc/default/rootfs apt-get install g++-5 git
+            sudo chroot /var/lib/lxc/default/rootfs apt-get -y install software-properties-common python-software-properties
+	    
+	    #Prepare Tincan for compilation
+            sudo chroot /var/lib/lxc/default/rootfs add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            sudo chroot /var/lib/lxc/default/rootfs apt-get -y update
+            sudo chroot /var/lib/lxc/default/rootfs apt-get -y install g++-4.9 git
+	    sudo chroot /var/lib/lxc/default/rootfs rm /usr/bin/gcc
+	    sudo chroot /var/lib/lxc/default/rootfs rm /usr/bin/g++
+	    sudo chroot /var/lib/lxc/default/rootfs ln -s /usr/bin/gcc-4.9 /usr/bin/gcc
+	    sudo chroot /var/lib/lxc/default/rootfs ln -s /usr/bin/g++-4.9 /usr/bin/g++
+
             # install python-pip and sleekXMPP
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
             sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
@@ -85,6 +97,7 @@ while true; do
                 sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
                 sudo ejabberdctl restart
             else
+		sudo apt-get -y install erlang-p1-stun
                 sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
                 sudo systemctl restart ejabberd.service
             fi
@@ -93,7 +106,7 @@ while true; do
             # create admin user
             sudo ejabberdctl register admin ejabberd password
         ;;
-        ("start")
+        ("create")
             NET_TEST=$(ip route get 8.8.8.8)
             NET_DEV=$(echo $NET_TEST | awk '{print $5}')
             NET_IP4=$(echo $NET_TEST | awk '{print $7}')
@@ -104,8 +117,11 @@ while true; do
                 echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
                 read user_input
                 if [ $user_input = 'F' ]; then
-                    echo -e "\e[1;31mEnter IPOP Controller github URL: \e[0m"
+                    echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO \e[0m"
                     read githuburl_ctrl
+		    if [ -z "$githuburl_ctrl"]; then
+			    githuburl_ctr=$DEFAULT_CONTROLLERS_REPO
+		    fi
                     git clone $githuburl_ctrl
                     echo -e "Do you want to continue using master branch(Y/N):"
                     read user_input
@@ -118,10 +134,13 @@ while true; do
                     fi
                 fi
             else
-                echo -e "\e[1;31mEnter IPOP Controller github URL: \e[0m"
-                read githuburl_ctrl
-                git clone $githuburl_ctrl
-                echo -e "Do you want to continue using master branch(Y/N):"
+                echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO \e[0m"
+	        read githuburl_ctrl
+		if [ -z "$githuburl_ctrl"]; then
+		    githuburl_ctr=$DEFAULT_CONTROLLERS_REPO
+		fi 
+		git clone $githuburl_ctr
+		echo -e "Do you want to continue using master branch(Y/N):"
                 read user_input
                 if [ $user_input = 'N' ]; then
                     echo -e "Enter git repo branch name:"
@@ -136,8 +155,12 @@ while true; do
                 echo "Tincan binary present, aborting build script execution!!!"
             else
                 echo "***************Building Tincan binary***************"
-                echo -e "\e[1;31mEnter github URL for Tincan: \e[0m"
-                read github_tincan
+		echo -e "\e[1;31mEnter github URL for Tincan (default: $DEFAULT_TINCAN_REPO) \e[0m"
+		read github_tincan
+		if [ -z "$github_tincan" ] ; then
+		    github_tincan=$DEFAULT_TINCAN_REPO
+		fi
+
                 git clone $github_tincan
                 echo -e "Do you want to continue using master branch(Y/N):"
                 read user_input
@@ -149,8 +172,7 @@ while true; do
                     cd ..
                 fi
                 cd ./Tincan/trunk/build/
-                make clean
-                make
+		make
                 cd ../../..
                 cp ./Tincan/trunk/out/release/x64/ipop-tincan .
             fi
@@ -189,8 +211,6 @@ while true; do
                 sudo cp -r ./Controllers/controller/ "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
                 sudo cp ./ipop-tincan "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
                 sudo cp './ipop.bash' "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-                sudo lxc-attach -n node$i -- bash -c "sudo rm /usr/bin/gcc; sudo rm /usr/bin/g++; sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc; sudo ln -s /usr/bin/g++-5 /usr/bin/g++;
-                "
                 sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/ipop.bash;"
                 sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash config $i GroupVPN $NET_IP4 $isvisual $topology_param"
                 echo "Container node$i started"
@@ -203,7 +223,7 @@ while true; do
             sudo rm -r Controllers
             sudo rm -r Tincan
         ;;
-        ("restart")
+        ("start")
             echo -e "\e[1;31mStarting containers.... \e[0m"
             for i in $(seq $min $max); do
                 sudo bash -c "sudo lxc-start -n node$i --daemon;"
