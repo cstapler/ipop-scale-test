@@ -204,7 +204,7 @@ while true; do
             fi
             for i in $(seq $min $max); do
                 sudo bash -c "
-                lxc-clone default node$i;
+                lxc-copy -n default -N node$i;
                 sudo lxc-start -n node$i --daemon;
                 sudo lxc-attach -n node$i -- bash -c 'sudo mkdir -p $IPOP_HOME; sudo mkdir /dev/net; sudo mknod /dev/net/tun c 10 200; sudo chmod 0666 /dev/net/tun';
                 "
@@ -214,6 +214,7 @@ while true; do
                 sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/ipop.bash;"
                 sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash config $i GroupVPN $NET_IP4 $isvisual $topology_param"
                 echo "Container node$i started"
+		sudo ejabberdctl register "node$i" ejabberd password
                 for j in $(seq $min $max); do
                     if [ "$i" != "$j" ]; then
                         sudo ejabberdctl add_rosteritem "node$i" ejabberd "node$j" ejabberd "node$j" ipop both
@@ -236,7 +237,8 @@ while true; do
                 for j in $(seq $min $max); do
                     if [ "$i" != "$j" ]; then
                         sudo ejabberdctl delete_rosteritem "node$i" ejabberd "node$j" ejabberd
-                    fi
+		        sudo ejabberdctl unregister "node$i" ejabberd
+		    fi	
                 done
                 sudo lxc-stop -n "node$i"
                 sudo lxc-destroy -n "node$i"
@@ -255,12 +257,14 @@ while true; do
             read user_input
             if [ $user_input = '#' ]; then 
                 for i in $(seq $min $max); do
-                    sudo lxc-attach -n node$i -- bash -c "cd /home/ubuntu/ipop/; sudo /home/ubuntu/ipop/ipop-tincan &> ./tin.log &"
-                    sudo lxc-attach -n node$i -- bash -c "cd /home/ubuntu/ipop/; sudo python -m controller.Controller -c ./ipop-config.json &> ./ctr.log &"
+		    echo "Running node$i"
+                    sudo lxc-attach -n "node$i" -- bash -c 'cd /home/ubuntu/ipop/; ./ipop-tincan &> ./tin.log & disown'
+                    sudo lxc-attach -n "node$i" -- bash -c 'cd /home/ubuntu/ipop/;  python -m controller.Controller -c ./ipop-config.json &> ./ctr.log & disown'
                 done
             else
-                sudo lxc-attach -n node$user_input -- bash -c "cd /home/ubuntu/ipop/; sudo /home/ubuntu/ipop/ipop-tincan &> ./tin.log &"
-                sudo lxc-attach -n node$user_input -- bash -c "cd /home/ubuntu/ipop/; sudo python -m controller.Controller -c ./ipop-config.json &> ./ctr.log &"
+		echo "Running node$user_input"
+                sudo lxc-attach -n "node$user_input" -- bash -c 'cd /home/ubuntu/ipop/; nohup ./ipop-tincan &> ./tin.log &'
+                sudo lxc-attach -n "node$user_input" -- bash -c 'cd /home/ubuntu/ipop/; nohup python -m controller.Controller -c ./ipop-config.json &> ./ctr.log &'
             fi
             wait
         ;;
