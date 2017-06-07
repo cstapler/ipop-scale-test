@@ -29,13 +29,14 @@ case $1 in
                 "\n    \"Model\": \"$vpn_type\""\
                 "\n  },"\
                 "\n  \"Logger\": {"\
-                "\n    \"LogLevel\": \"ERROR\","\
+                "\n    \"LogLevel\": \"WARNING\","\
                 "\n    \"LogOption\": \"File\","\
                 "\n    \"BackupLogFileCount\": 5,"\
                 "\n    \"LogFileName\": \"ctr.log\","\
                 "\n    \"LogFileSize\": 10000"\
                 "\n  },"\
 		"\n  \"Tincan\": {"\
+		"\n    \"Loglevel\": \"WARNING\","\
 		"\n    \"Log\": {"\
 	        "\n       \"Level\": \"ERROR\","\
 		"\n       \"Device\": \"File\","\
@@ -43,7 +44,7 @@ case $1 in
 		"\n       \"Filename\": \"tincan_log\","\
 		"\n       \"MaxArchives\": 10, "\
 		"\n       \"MaxFileSize\": 1048576,"\
-		"\n       \"ConsoleLevel\": \"NONE\", "\
+		"\n       \"ConsoleLevel\": \"NONE\""\
 		"\n     }, "\
 		"\n    \"Vnets\": [{"\
                 "\n       \"IP4\": \"$BaseTopologyManager_ip4\","\
@@ -57,7 +58,7 @@ case $1 in
 		"\n     \"Stun\": [\"stun.l.google.com:19302\"],"\
                 "\n     \"Turn\": [{"\
                 "\n        \"Address\": \"***REMOVED***:19302\","\
-                "\n        \"User\": \"***REMOVED***\" ,"\
+                "\n        \"User\": \"***REMOVED***\","\
                 "\n        \"Password\": \"***REMOVED***\""\
                 "\n     }]"\
                 "\n  },"\
@@ -69,15 +70,15 @@ case $1 in
                 "\n    \"Port\": \"$CFx_xmpp_port\","\
                 "\n    \"TapName\": \"ipop_tap0\","\
                 "\n    \"AuthenticationMethod\": \"password\","\
-                "\n    \"AcceptUntrustedServer\": true"\
-                "\n    \"TimerInterval\": 15"\
-		"\n    \"dependencies\": [ "Logger" ] "\
+                "\n    \"AcceptUntrustedServer\": true,"\
+                "\n    \"TimerInterval\": 15,"\
+		"\n    \"dependencies\": [ \"Logger\" ] "\
                 "\n  },"\
                 "\n  \"BaseTopologyManager\": {"\
                 "\n    \"NumberOfSuccessors\": $BaseTopologyManager_num_successors,"\
                 "\n    \"NumberOfChords\": $BaseTopologyManager_num_chords,"\
                 "\n    \"NumberOfOnDemand\": $BaseTopologyManager_num_on_demand,"\
-                "\n    \"NumberOfInbound\": $BaseTopologyManager_num_inbound"\
+                "\n    \"NumberOfInbound\": $BaseTopologyManager_num_inbound,"\
 		"\n    \"InitialLinkTTL\": 120,"\
 	        "\n    \"LinkPulse\": 180,"\
 		"\n    \"OnDemandLinkTTL\": 60,"\
@@ -88,20 +89,23 @@ case $1 in
 		"\n    \"MaxConnRetry\": 5,"\
 		"\n    \"dependencies\": [ \"Logger\" ]"\
                 "\n  },"\
+		"\n  \"TincanDispatcher\": {"\
+		"\n    \"dependenices\": [ \"Logger\" ]"\
+		"\n  },"\
 		"\n  \"TincanListener\": {"\
 		"\n    \"SocketReadWaitTime\": 15,"\
-		"\n    \"dependencies\" [ \"Logger\", \"TincanDispatcher\" ]"\
+		"\n    \"dependencies\": [ \"Logger\", \"TincanDispatcher\" ]"\
 		"\n  },"\
 		"\n  \"TincanSender\": {"\
 		"\n    \"dependencies\": [ \"Logger\" ] "\
 		"\n  },"\
                 "\n  \"OverlayVisualizer\": {"\
                 "\n    \"Enabled\": $isVisulizerEnabled,"\
-                "\n    \"WebServiceAddress\": \"$CentralVisualizer_central_visualizer_addr\""\
-		"\n    \"TopologyDataQueryInterval\": 5,"\
-		"\n    \"WebServiceDataPostInterval\": 10,"\
+                "\n    \"WebServiceAddress\": \"$CentralVisualizer_central_visualizer_addr\","\
+		"\n    \"TopologyDataQueryInterval\": 2,"\
+		"\n    \"WebServiceDataPostInterval\": 2,"\
 		"\n    \"TimerInterval\": 5,"\
-		"\n    \"NodeName\": \"*\","\
+		"\n    \"NodeName\": \"visualizer\","\
 		"\n    \"dependencies\": [ \"Logger\" ]"\
                 "\n  },"\
 		"\n  \"BroadCastController\": { "\
@@ -111,13 +115,13 @@ case $1 in
 		"\n  \"BroadCastForwarder\": { "\
 		"\n    \"Enabled\": true,"\
 		"\n    \"dependencies\": [ \"Logger\" ]"\
-		"\n  }"\
+		"\n  },"\
 	        "\n  \"Multicast\": { "\
 		"\n    \"Enabled\": true,"\
 		"\n    \"OnDemandThreshold\": 15,"\
 		"\n    \"dependencies\": [ \"Logger\" ]"\
 		"\n  },"\
-	        "\n  \"ConnectionManager\" { "\
+	        "\n  \"ConnectionManager\": { "\
                 "\n    \"InitialLinkTTL\": 120,"\
 		"\n    \"ChordLinkTTL\": 180,"\
 		"\n    \"OndemandLinkRateThreshold\": 128,"\
