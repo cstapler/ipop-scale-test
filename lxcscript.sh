@@ -277,8 +277,7 @@ while true; do
                     sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash kill"   
                 done
             else
-                sudo lxc-attach -n node$i -- bash -c "ps aux | grep $IPOP_TINCAN | awk '{print $2}' | xargs sudo kill -9"
-                sudo lxc-attach -n node$i -- bash -c "ps aux | grep $IPOP_CONTROLLER | awk '{print $2}' | xargs sudo kill -9"    
+                sudo lxc-attach -n node$user_input -- bash -c "sudo $IPOP_HOME/ipop.bash kill"
             fi    
         ;;
         ("quit")
