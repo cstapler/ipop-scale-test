@@ -258,13 +258,13 @@ while true; do
             if [ $user_input = '#' ]; then 
                 for i in $(seq $min $max); do
 		    echo "Running node$i"
-                    sudo lxc-attach -n "node$i" -- bash -c 'cd /home/ubuntu/ipop/; ./ipop-tincan &> ./tin.log & disown'
-                    sudo lxc-attach -n "node$i" -- bash -c 'cd /home/ubuntu/ipop/;  python -m controller.Controller -c ./ipop-config.json &> ./ctr.log & disown'
+                    sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+                    sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
                 done
             else
 		echo "Running node$user_input"
-                sudo lxc-attach -n "node$user_input" -- bash -c 'cd /home/ubuntu/ipop/; nohup ./ipop-tincan &> ./tin.log &'
-                sudo lxc-attach -n "node$user_input" -- bash -c 'cd /home/ubuntu/ipop/; nohup python -m controller.Controller -c ./ipop-config.json &> ./ctr.log &'
+                sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+                sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
             fi
             wait
         ;;
