@@ -9,7 +9,7 @@ CONTROLLER="./Controllers"
 DEFAULT_LXC_PACKAGES='python psmisc iperf'
 DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
 DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
-DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
+DEFAULT_CONTROLLERS_REPO='https://github.com/vyassu/Controllers'
 DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
 
 if [ -e $HELP_FILE ]; then
@@ -119,10 +119,10 @@ while true; do
                 echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
                 read user_input
                 if [ $user_input = 'F' ]; then
-                    echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO \e[0m"
+			echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
                     read githuburl_ctrl
-		    if [ -z "$githuburl_ctrl"]; then
-			    githuburl_ctr=$DEFAULT_CONTROLLERS_REPO
+		    if [ -z "$githuburl_ctrl" ]; then
+			    githuburl_ctrl=$DEFAULT_CONTROLLERS_REPO
 		    fi
                     git clone $githuburl_ctrl
                     echo -e "Do you want to continue using master branch(Y/N):"
@@ -138,10 +138,10 @@ while true; do
             else
                 echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO \e[0m"
 	        read githuburl_ctrl
-		if [ -z "$githuburl_ctrl"]; then
-		    githuburl_ctr=$DEFAULT_CONTROLLERS_REPO
+		if [ -z "$githuburl_ctrl" ]; then
+		    githuburl_ctrl=$DEFAULT_CONTROLLERS_REPO
 		fi 
-		git clone $githuburl_ctr
+		git clone $githuburl_ctrl
 		echo -e "Do you want to continue using master branch(Y/N):"
                 read user_input
                 if [ $user_input = 'N' ]; then
@@ -252,7 +252,6 @@ while true; do
             for i in $(seq $min $max); do
                 sudo lxc-stop -n "node$i"
             done
-            wait
         ;;
         ("run")
             echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
@@ -268,7 +267,6 @@ while true; do
                 sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
                 sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
             fi
-            wait
         ;;
         ("kill")
             # kill IPOP tincan and controller
