@@ -35,99 +35,25 @@ case $1 in
                 "\n    \"LogFileName\": \"ctr.log\","\
                 "\n    \"LogFileSize\": 10000"\
                 "\n  },"\
-		"\n  \"Tincan\": {"\
-		"\n    \"Loglevel\": \"DEBUG\","\
-		"\n    \"Log\": {"\
-	        "\n       \"Level\": \"DEBUG\","\
-		"\n       \"Device\": \"File\","\
-		"\n       \"Directory\": \"./logs/\","\
-		"\n       \"Filename\": \"tincan_log\","\
-		"\n       \"MaxArchives\": 10, "\
-		"\n       \"MaxFileSize\": 1048576,"\
-		"\n       \"ConsoleLevel\": \"NONE\""\
-		"\n     }, "\
-		"\n    \"Vnets\": [{"\
-                "\n       \"IP4\": \"$BaseTopologyManager_ip4\","\
-                "\n       \"IP4Prefix\": $CFx_ip4_mask, "\
-                "\n       \"XMPPModuleName\": \"XmppClient\", "\
-                "\n       \"TapName\": \"ipop_tap0\","\
-                "\n       \"Description\": \"Ethernet Device\","\
-                "\n       \"IgnoredNetInterfaces\": [\"ipop_tap0\", \"ipop_tap1\", \"Bluetooth Network Connection\", \"VMware Network Adapter VMnet1\", \"VMware Network Adapter VMnet2\"],"\
-                "\n       \"L2TunnellingEnabled\": 1"\
-                "\n     }],"\
-		"\n     \"Stun\": [\"stun.l.google.com:19302\"],"\
-                "\n     \"Turn\": [{"\
-                "\n        \"Address\": \"***REMOVED***:19302\","\
-                "\n        \"User\": \"***REMOVED***\","\
-                "\n        \"Password\": \"***REMOVED***\""\
-                "\n     }]"\
-                "\n  },"\
-                "\n  \"XmppClient\": {"\
-                "\n    \"Enabled\": true,"\
+               "\n  \"XmppClient\": {"\
                 "\n    \"Username\": \"$CFx_xmpp_username\","\
                 "\n    \"Password\": \"$CFx_xmpp_password\","\
                 "\n    \"AddressHost\": \"$CFx_xmpp_host\","\
                 "\n    \"Port\": \"$CFx_xmpp_port\","\
-                "\n    \"TapName\": \"ipop_tap0\","\
-                "\n    \"AuthenticationMethod\": \"password\","\
-                "\n    \"AcceptUntrustedServer\": true,"\
-                "\n    \"TimerInterval\": 15,"\
-		"\n    \"dependencies\": [ \"Logger\" ] "\
+                "\n    \"AuthenticationMethod\": \"password\""\
                 "\n  },"\
                 "\n  \"BaseTopologyManager\": {"\
                 "\n    \"NumberOfSuccessors\": $BaseTopologyManager_num_successors,"\
                 "\n    \"NumberOfChords\": $BaseTopologyManager_num_chords,"\
                 "\n    \"NumberOfOnDemand\": $BaseTopologyManager_num_on_demand,"\
-                "\n    \"NumberOfInbound\": $BaseTopologyManager_num_inbound,"\
-		"\n    \"InitialLinkTTL\": 120,"\
-	        "\n    \"LinkPulse\": 180,"\
-		"\n    \"OnDemandLinkTTL\": 60,"\
-		"\n    \"TimerInterval\": 1,"\
-		"\n    \"TopologyRefreshInterval\": 15,"\
-		"\n    \"NumberOfPingsToPeer\": 5,"\
-		"\n    \"PeerPingInterval\": 300,"\
-		"\n    \"MaxConnRetry\": 5,"\
-		"\n    \"dependencies\": [ \"Logger\" ]"\
+                "\n    \"NumberOfInbound\": $BaseTopologyManager_num_inbound"\
                 "\n  },"\
-		"\n  \"TincanDispatcher\": {"\
-		"\n    \"dependenices\": [ \"Logger\" ]"\
-		"\n  },"\
-		"\n  \"TincanListener\": {"\
-		"\n    \"SocketReadWaitTime\": 15,"\
-		"\n    \"dependencies\": [ \"Logger\", \"TincanDispatcher\" ]"\
-		"\n  },"\
-		"\n  \"TincanSender\": {"\
-		"\n    \"dependencies\": [ \"Logger\" ] "\
-		"\n  },"\
-                "\n  \"OverlayVisualizer\": {"\
+		"\n  \"OverlayVisualizer\": {"\
                 "\n    \"Enabled\": $isVisulizerEnabled,"\
                 "\n    \"WebServiceAddress\": \"$CentralVisualizer_central_visualizer_addr\","\
-		"\n    \"TopologyDataQueryInterval\": 2,"\
-		"\n    \"WebServiceDataPostInterval\": 2,"\
-		"\n    \"TimerInterval\": 5,"\
-		"\n    \"NodeName\": \"node$ipop_id\","\
-		"\n    \"dependencies\": [ \"Logger\" ]"\
-                "\n  },"\
-		"\n  \"BroadCastController\": { "\
-		"\n    \"Enabled\": true,"\
-		"\n    \"dependencies\": [ \"Logger\" ]"\
-		"\n  },"\
-		"\n  \"BroadCastForwarder\": { "\
-		"\n    \"Enabled\": true,"\
-		"\n    \"dependencies\": [ \"Logger\" ]"\
-		"\n  },"\
-	        "\n  \"Multicast\": { "\
-		"\n    \"Enabled\": true,"\
-		"\n    \"OnDemandThreshold\": 15,"\
-		"\n    \"dependencies\": [ \"Logger\" ]"\
-		"\n  },"\
-	        "\n  \"ConnectionManager\": { "\
-                "\n    \"InitialLinkTTL\": 120,"\
-		"\n    \"ChordLinkTTL\": 180,"\
-		"\n    \"OndemandLinkRateThreshold\": 128,"\
-		"\n    \"dependencies\": [ \"Logger\" ] "\
-		"\n  }"\
-                "\n}"\
+		"\n    \"NodeName\": \"node$ipop_id\""\
+                "\n  }"\
+		"\n}"\
         > $IPOP_CONFIG
         ;;
     ("kill")
