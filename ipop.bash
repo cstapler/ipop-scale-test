@@ -29,16 +29,16 @@ case $1 in
                 "\n    \"Model\": \"$vpn_type\""\
                 "\n  },"\
                 "\n  \"Logger\": {"\
-                "\n    \"LogLevel\": \"WARNING\","\
+                "\n    \"LogLevel\": \"DEBUG\","\
                 "\n    \"LogOption\": \"File\","\
                 "\n    \"BackupLogFileCount\": 5,"\
                 "\n    \"LogFileName\": \"ctr.log\","\
                 "\n    \"LogFileSize\": 10000"\
                 "\n  },"\
 		"\n  \"Tincan\": {"\
-		"\n    \"Loglevel\": \"WARNING\","\
+		"\n    \"Loglevel\": \"DEBUG\","\
 		"\n    \"Log\": {"\
-	        "\n       \"Level\": \"ERROR\","\
+	        "\n       \"Level\": \"DEBUG\","\
 		"\n       \"Device\": \"File\","\
 		"\n       \"Directory\": \"./logs/\","\
 		"\n       \"Filename\": \"tincan_log\","\
@@ -105,7 +105,7 @@ case $1 in
 		"\n    \"TopologyDataQueryInterval\": 2,"\
 		"\n    \"WebServiceDataPostInterval\": 2,"\
 		"\n    \"TimerInterval\": 5,"\
-		"\n    \"NodeName\": \"visualizer\","\
+		"\n    \"NodeName\": \"node$ipop_id\","\
 		"\n    \"dependencies\": [ \"Logger\" ]"\
                 "\n  },"\
 		"\n  \"BroadCastController\": { "\
