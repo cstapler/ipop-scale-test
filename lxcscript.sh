@@ -10,6 +10,7 @@ DEFAULT_LXC_PACKAGES='python psmisc iperf'
 DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
 DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
 DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
+DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
 
 if [ -e $HELP_FILE ]; then
     min=$(cat $HELP_FILE | grep MIN | awk '{print $2}')
@@ -31,6 +32,8 @@ function options()
    del                            : delete containers
    run                            : To run IPOP node
    kill                           : To kill IPOP node
+   start-visualizer               : install and start up visualizer
+   stop-visualizer                : stop all visualizer related processes
 > ' user_input
     echo $user_input
 }
@@ -46,23 +49,18 @@ while true; do
             NET_DEV=$(echo $NET_TEST | awk '{print $5}')
             NET_IP4=$(echo $NET_TEST | awk '{print $7}')
             
-            sudo apt-get update
-            sudo apt-get -y install lxc
-            # Install ubuntu OS in the lxc-container
+	    #Prepare Tincan for compilation
+	    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+            sudo apt-get update -y
+            sudo apt-get -y install lxc g++-4.9
+	    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 10
+
+	    # Install ubuntu OS in the lxc-container
             sudo lxc-create -n default -t ubuntu
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y update
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install $DEFAULT_LXC_PACKAGES
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install software-properties-common python-software-properties
 	    
-	    #Prepare Tincan for compilation
-            sudo chroot /var/lib/lxc/default/rootfs add-apt-repository -y ppa:ubuntu-toolchain-r/test
-            sudo chroot /var/lib/lxc/default/rootfs apt-get -y update
-            sudo chroot /var/lib/lxc/default/rootfs apt-get -y install g++-4.9 git
-	    sudo chroot /var/lib/lxc/default/rootfs rm /usr/bin/gcc
-	    sudo chroot /var/lib/lxc/default/rootfs rm /usr/bin/g++
-	    sudo chroot /var/lib/lxc/default/rootfs ln -s /usr/bin/gcc-4.9 /usr/bin/gcc
-	    sudo chroot /var/lib/lxc/default/rootfs ln -s /usr/bin/g++-4.9 /usr/bin/g++
-
             # install python-pip and sleekXMPP
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
             sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
@@ -101,10 +99,14 @@ while true; do
                 sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
                 sudo systemctl restart ejabberd.service
             fi
-            # wait for ejabberd service to start
+            # Wait for ejabberd service to start
             sleep 15
-            # create admin user
+            # Create admin user
             sudo ejabberdctl register admin ejabberd password
+
+            # Install visualizer deps: mongodb and python virtual environment
+	    sudo apt-get install mongodb
+	    sudo apt-get install python python-pip
         ;;
         ("create")
             NET_TEST=$(ip route get 8.8.8.8)
@@ -283,5 +285,33 @@ while true; do
         ("quit")
             exit 0
         ;;
+	("start-visualizer")
+	    echo -e "\e[1;31mEnter visualizer github URL(default: $DEFAULT_VISUALIZER_REPO) \e[0m"
+            read githuburl_visualizer
+            if [ -z "$githuburl_visualizer"]; then
+		githuburl_visualizer=$DEFAULT_VISUALIZER_REPO
+	    fi
+	    git clone $githuburl_visualizer
+	    cd IPOPNetVisualizer
+            echo -e "Do you want to continue using master branch(Y/N):"
+            read user_input
+            if [ $user_input = 'N' ]; then
+               echo -e "Enter git repo branch name:"
+               read github_branch
+               git checkout $github_branch
+            fi
+	    python -m pip install virtualenv
+	    python -m virtualenv venv
+	    source ./venv/bin/activate
+	    python -m pip install -r requirements.txt
+	    nohup python aggr.py &
+	    nohup python centVis.py &
+	    cd ..
+        ;;
+	("stop-visualizer")
+	    ps aux | grep "centVis.py" | awk '{print $2}' | xargs sudo kill -9
+	    ps aux | grep "aggr.py" | awk '{print $2}' | xargs sudo kill -9
+	    rm -rf ./IPOPNetVisualizer
+	;;
     esac
 done
