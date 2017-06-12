@@ -1,5 +1,9 @@
-# Tincan Binary
+# IPOP related
 ipop-tincan
+IPOPNetVisualizer/
+Tincan/
+Controller/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
