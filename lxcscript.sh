@@ -11,6 +11,7 @@ DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
 DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
 DEFAULT_CONTROLLERS_REPO='https://github.com/vyassu/Controllers'
 DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
+OS_VERSION=$(lsb_release -r -s)
 
 if [ -e $HELP_FILE ]; then
     min=$(cat $HELP_FILE | grep MIN | awk '{print $2}')
@@ -89,9 +90,8 @@ while true; do
             # Install local ejabberd server
             sudo apt-get -y install ejabberd
             # prepare ejabberd server config file
-            os_version=$(lsb_release -r -s)
             # restart ejabberd service
-            if [ $os_version = '14.04' ]; then
+            if [ $OS_VERSION = '14.04' ]; then
                 sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
                 sudo ejabberdctl restart
             else
@@ -104,9 +104,6 @@ while true; do
             # Create admin user
             sudo ejabberdctl register admin ejabberd password
 
-            # Install visualizer deps: mongodb and python virtual environment
-	    sudo apt-get install mongodb
-	    sudo apt-get install python python-pip
         ;;
         ("create")
             NET_TEST=$(ip route get 8.8.8.8)
@@ -298,11 +295,16 @@ while true; do
                read github_branch
                git checkout $github_branch
             fi
+            # Install visualizer deps: mongodb and python virtual environment
+	    sudo apt-get install mongodb
+	    service mongodb start
+	    sudo apt-get install python python-pip
 	    python -m pip install virtualenv
 	    python -m virtualenv venv
 	    source ./venv/bin/activate
 	    python -m pip install -r requirements.txt
 	    nohup python aggr.py &
+	    sleep 5s
 	    nohup python centVis.py &
 	    cd ..
         ;;
@@ -310,6 +312,13 @@ while true; do
 	    ps aux | grep "centVis.py" | awk '{print $2}' | xargs sudo kill -9
 	    ps aux | grep "aggr.py" | awk '{print $2}' | xargs sudo kill -9
 	    rm -rf ./IPOPNetVisualizer
+	    if [ $OS_VERSION = '14.04' ]; then
+                sudo service mongodb stop
+		echo manual | sudo tee /etc/init/mongodb.override
+            else
+                sudo systemctl stop mongodb
+		sudo systemctl disable mongodb
+            fi
 	;;
     esac
 done
