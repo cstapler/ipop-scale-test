@@ -31,10 +31,11 @@ function options()
    start                          : restart containers
    stop                           : stop containers
    del                            : delete containers
-   run                            : To run IPOP node
-   kill                           : To kill IPOP node
+   run                            : to run IPOP node
+   kill                           : to kill IPOP node
    start-visualizer               : install and start up visualizer
    stop-visualizer                : stop all visualizer related processes
+   status                         : show statuses of scale test related elements
 > ' user_input
     echo $user_input
 }
@@ -103,6 +104,9 @@ while true; do
             sleep 15
             # Create admin user
             sudo ejabberdctl register admin ejabberd password
+
+	    #Python dependencies for visualizer and enviornment check
+	    sudo apt-get install python python-pip python-lxc
 
         ;;
         ("create")
@@ -298,7 +302,6 @@ while true; do
             # Install visualizer deps: mongodb and python virtual environment
 	    sudo apt-get install mongodb
 	    service mongodb start
-	    sudo apt-get install python python-pip
 	    python -m pip install virtualenv
 	    python -m virtualenv venv
 	    source ./venv/bin/activate
@@ -319,6 +322,40 @@ while true; do
                 sudo systemctl stop mongodb
 		sudo systemctl disable mongodb
             fi
+	;;
+	("status")
+	    controller_log='/home/ubuntu/ipop/ctr.log'
+	    tincan_log='/home/ubuntu/ipop/logs/tincan_log_0'
+	    echo -e "\n====== Starting Enviornment Checks ======"
+	    for i in $(seq $min $max); do
+		   mkdir -p logs/"node$i"
+		   sudo lxc-info -n "node$i" > logs/"node$i"/container_status.txt
+		   container_status=$(sudo lxc-ls --fancy | grep "node$i" | awk '{ print $2 }')
+
+		   if [ "$container_status" = 'RUNNING' ] ; then
+			ctrl_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $controller_log ] && echo 'FOUND' || echo 'NOT FOUND'")
+			tin_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $tincan_log ] && echo 'FOUND' || echo 'NOT FOUND'")
+
+			if [ "$ctrl_log_status" = 'FOUND' ] ; then
+				echo "Captured node$i controller log "
+				sudo lxc-attach -n "node$i" -- bash -c "cat $controller_log" > logs/"node$i"/ctr.log
+			else
+				echo 'Controller log file not found'
+			fi
+
+			if [ "$tin_log_status" = 'FOUND' ] ; then
+				echo "Captured node$i tincan log "
+				sudo lxc-attach -n "node$i" -- bash -c "cat $tincan_log" > logs/"node$i"/tin.log
+			else
+				echo "Tincan log file for node$i not found"
+			fi
+
+		   else
+			echo -e "node$i is not running"
+		   fi
+	    done
+	    echo -e "\n====== View $(pwd)/logs/ for more details on node statuses ======"
+	    sleep 4s
 	;;
     esac
 done
