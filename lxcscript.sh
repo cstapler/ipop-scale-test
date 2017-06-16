@@ -65,7 +65,7 @@ while true; do
 	    
             # install python-pip and sleekXMPP
             sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
-            sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
+            sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil keyring
             echo 'lxc.cgroup.devices.allow = c 10:200 rwm' | sudo tee --append $DEFAULT_LXC_CONFIG
             # use IP aliasing to bind turnserver to this ipv4 address
             sudo ifconfig $NET_DEV:0 $NET_IP4 up
