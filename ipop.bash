@@ -29,18 +29,51 @@ case $1 in
                 "\n    \"Model\": \"$vpn_type\""\
                 "\n  },"\
                 "\n  \"Logger\": {"\
-                "\n    \"LogLevel\": \"DEBUG\","\
+                "\n    \"LogLevel\": \"INFO\","\
                 "\n    \"LogOption\": \"File\","\
                 "\n    \"BackupLogFileCount\": 5,"\
                 "\n    \"LogFileName\": \"ctr.log\","\
                 "\n    \"LogFileSize\": 10000"\
                 "\n  },"\
-               "\n  \"XmppClient\": {"\
-                "\n    \"Username\": \"$CFx_xmpp_username\","\
-                "\n    \"Password\": \"$CFx_xmpp_password\","\
-                "\n    \"AddressHost\": \"$CFx_xmpp_host\","\
-                "\n    \"Port\": \"$CFx_xmpp_port\","\
-                "\n    \"AuthenticationMethod\": \"password\""\
+		"\n  \"VirtualNetworkInitializer\": {"\
+		"\n    \"Log\": {"\
+	        "\n       \"Level\": \"DEBUG\","\
+		"\n       \"Device\": \"File\","\
+		"\n       \"Directory\": \"./logs/\","\
+		"\n       \"Filename\": \"tincan_log\","\
+		"\n       \"MaxArchives\": 10, "\
+		"\n       \"MaxFileSize\": 1048576,"\
+		"\n       \"ConsoleLevel\": \"NONE\""\
+		"\n     }, "\
+		"\n    \"Vnets\": [{"\
+                "\n       \"IP4\": \"$BaseTopologyManager_ip4\","\
+                "\n       \"IP4Prefix\": $CFx_ip4_mask, "\
+                "\n       \"XMPPModuleName\": \"XmppClient\", "\
+                "\n       \"TapName\": \"ipop_tap0\","\
+                "\n       \"Description\": \"Ethernet Device\","\
+                "\n       \"IgnoredNetInterfaces\": [\"ipop_tap0\", \"ipop_tap1\", \"Bluetooth Network Connection\", \"VMware Network Adapter VMnet1\", \"VMware Network Adapter VMnet2\"],"\
+                "\n       \"L2TunnellingEnabled\": 1"\
+                "\n     }],"\
+		"\n     \"Stun\": [\"stun.l.google.com:19302\"],"\
+                "\n     \"Turn\": [{"\
+                "\n        \"Address\": \"***REMOVED***:19302\","\
+                "\n        \"User\": \"***REMOVED***\","\
+                "\n        \"Password\": \"***REMOVED***\""\
+                "\n     }]"\
+                "\n  },"\
+                "\n  \"XmppClient\": {"\
+		"\n    \"xmppdetails\": [ "\
+		"\n      { "\
+                "\n        \"Enabled\": true,"\
+                "\n        \"Username\": \"$CFx_xmpp_username\","\
+                "\n        \"Password\": \"$CFx_xmpp_password\","\
+                "\n        \"AddressHost\": \"$CFx_xmpp_host\","\
+                "\n        \"Port\": \"$CFx_xmpp_port\","\
+                "\n        \"TapName\": \"ipop_tap0\","\
+                "\n        \"AuthenticationMethod\": \"password\","\
+                "\n        \"AcceptUntrustedServer\": true"\
+		"\n      } "\
+		"\n    ] "\
                 "\n  },"\
                 "\n  \"BaseTopologyManager\": {"\
                 "\n    \"NumberOfSuccessors\": $BaseTopologyManager_num_successors,"\
@@ -48,12 +81,12 @@ case $1 in
                 "\n    \"NumberOfOnDemand\": $BaseTopologyManager_num_on_demand,"\
                 "\n    \"NumberOfInbound\": $BaseTopologyManager_num_inbound"\
                 "\n  },"\
-		"\n  \"OverlayVisualizer\": {"\
+                "\n  \"OverlayVisualizer\": {"\
                 "\n    \"Enabled\": $isVisulizerEnabled,"\
                 "\n    \"WebServiceAddress\": \"$CentralVisualizer_central_visualizer_addr\","\
 		"\n    \"NodeName\": \"node$ipop_id\""\
                 "\n  }"\
-		"\n}"\
+                "\n}"\
         > $IPOP_CONFIG
         ;;
     ("kill")
