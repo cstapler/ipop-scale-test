@@ -333,8 +333,22 @@ while true; do
 		   container_status=$(sudo lxc-ls --fancy | grep "node$i" | awk '{ print $2 }')
 
 		   if [ "$container_status" = 'RUNNING' ] ; then
+		        ctrl_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[c]ontroller.Controller"')
+			tin_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[i]pop-tincan"')
 			ctrl_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $controller_log ] && echo 'FOUND' || echo 'NOT FOUND'")
 			tin_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $tincan_log ] && echo 'FOUND' || echo 'NOT FOUND'")
+
+			if [ -n "$ctrl_process_status" ]; then
+				echo "Controller is UP on node$i"
+			else
+				echo "Controller is DOWN on node$i"
+			fi
+
+			if [ -n "$tin_process_status" ]; then
+				echo "Tincan is UP on node$i"
+			else
+				echo "Tincan is DOWN on node$i"
+			fi
 
 			if [ "$ctrl_log_status" = 'FOUND' ] ; then
 				echo "Captured node$i controller log "
@@ -354,8 +368,8 @@ while true; do
 			echo -e "node$i is not running"
 		   fi
 	    done
-	    echo -e "\n====== View $(pwd)/logs/ for more details on node statuses ======"
-	    sleep 4s
+	    echo -e "====== View $(pwd)/logs/ for more details on node statuses ======"
+	    sleep 5s
 	;;
     esac
 done
