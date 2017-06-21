@@ -136,7 +136,7 @@ case $cmd in
 	    fi
 	fi
     else
-	echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO \e[0m"
+	    echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
 	read githuburl_ctrl
 	if [ -z "$githuburl_ctrl" ]; then
 	    githuburl_ctrl=$DEFAULT_CONTROLLERS_REPO
@@ -362,11 +362,20 @@ case $cmd in
 		else
 			echo "Tincan log file for node$i not found"
 		fi
-
 	   else
 		echo -e "node$i is not running"
 	   fi
     done
+
+    visualizer_aggr=$(ps aux | grep "[a]ggr")
+    visualizer_cent=$(ps aux | grep "[c]entVis")
+
+    if [ -n "$visualizer_aggr" -a -n "$visualizer_cent" ] ; then
+	   echo 'Visualizer is UP'
+    else
+	   echo 'Visualizer is Down'
+    fi
+
     echo -e "====== View $(pwd)/logs/ for more details on node statuses ======"
    ;;
 esac
