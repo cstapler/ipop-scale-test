@@ -29,12 +29,16 @@ case $1 in
                 "\n    \"Model\": \"$vpn_type\""\
                 "\n  },"\
                 "\n  \"Logger\": {"\
-                "\n    \"LogLevel\": \"INFO\","\
+		"\n    \"Enabled\":  true,"\
+                "\n    \"LogLevel\": \"DEBUG\","\
                 "\n    \"LogOption\": \"File\","\
                 "\n    \"BackupLogFileCount\": 5,"\
                 "\n    \"LogFileName\": \"ctr.log\","\
-                "\n    \"LogFileSize\": 10000"\
+                "\n    \"LogFileSize\": 100000000"\
                 "\n  },"\
+		"\n  \"TincanInterface\": { "\
+		"\n    \"Enabled\": true "\
+		"\n  },"\
 		"\n  \"VirtualNetworkInitializer\": {"\
 		"\n    \"Log\": {"\
 	        "\n       \"Level\": \"DEBUG\","\
