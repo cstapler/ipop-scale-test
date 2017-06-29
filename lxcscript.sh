@@ -9,7 +9,7 @@ CONTROLLER="./Controllers"
 DEFAULT_LXC_PACKAGES='python psmisc iperf'
 DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
 DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
-DEFAULT_CONTROLLERS_REPO='https://github.com/vyassu/Controllers'
+DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
 DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
 OS_VERSION=$(lsb_release -r -s)
 
