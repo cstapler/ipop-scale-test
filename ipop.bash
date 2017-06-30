@@ -29,26 +29,9 @@ case $1 in
                 "\n    \"Model\": \"$vpn_type\""\
                 "\n  },"\
                 "\n  \"Logger\": {"\
-		"\n    \"Enabled\":  true,"\
-                "\n    \"LogLevel\": \"DEBUG\","\
-                "\n    \"LogOption\": \"File\","\
-                "\n    \"BackupLogFileCount\": 5,"\
-                "\n    \"LogFileName\": \"ctr.log\","\
-                "\n    \"LogFileSize\": 100000000"\
+                "\n    \"LogLevel\": \"DEBUG\""\
                 "\n  },"\
-		"\n  \"TincanInterface\": { "\
-		"\n    \"Enabled\": true "\
-		"\n  },"\
 		"\n  \"VirtualNetworkInitializer\": {"\
-		"\n    \"Log\": {"\
-	        "\n       \"Level\": \"DEBUG\","\
-		"\n       \"Device\": \"File\","\
-		"\n       \"Directory\": \"./logs/\","\
-		"\n       \"Filename\": \"tincan_log\","\
-		"\n       \"MaxArchives\": 10, "\
-		"\n       \"MaxFileSize\": 1048576,"\
-		"\n       \"ConsoleLevel\": \"NONE\""\
-		"\n     }, "\
 		"\n    \"Vnets\": [{"\
                 "\n       \"IP4\": \"$BaseTopologyManager_ip4\","\
                 "\n       \"IP4Prefix\": $CFx_ip4_mask, "\

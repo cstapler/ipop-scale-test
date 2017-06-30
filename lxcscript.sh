@@ -323,8 +323,8 @@ case $cmd in
     fi
 ;;
 ("status")
-    controller_log='/home/ubuntu/ipop/ctr.log'
-    tincan_log='/home/ubuntu/ipop/logs/tincan_log_0'
+    controller_log='/home/ubuntu/ipop/logs/ctrl.log'
+    tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
     echo -e "\n====== Starting Enviornment Checks ======"
     for i in $(seq $min $max); do
 	   mkdir -p logs/"node$i"
@@ -351,14 +351,14 @@ case $cmd in
 
 		if [ "$ctrl_log_status" = 'FOUND' ] ; then
 			echo "Captured node$i controller log "
-			sudo lxc-attach -n "node$i" -- bash -c "cat $controller_log" > logs/"node$i"/ctr.log
+			sudo lxc-attach -n "node$i" -- bash -c "cat $controller_log" > logs/"node$i"/ctrl.log
 		else
 			echo 'Controller log file not found'
 		fi
 
 		if [ "$tin_log_status" = 'FOUND' ] ; then
 			echo "Captured node$i tincan log "
-			sudo lxc-attach -n "node$i" -- bash -c "cat $tincan_log" > logs/"node$i"/tin.log
+			sudo lxc-attach -n "node$i" -- bash -c "cat $tincan_log" > logs/"node$i"/tincan.log
 		else
 			echo "Tincan log file for node$i not found"
 		fi
