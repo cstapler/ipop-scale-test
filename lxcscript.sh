@@ -36,6 +36,7 @@ function options()
    start-visualizer               : install and start up visualizer
    stop-visualizer                : stop all visualizer related processes
    status                         : show statuses of scale test related elements
+   test                           : test ipop environment with ping and iperf test
 > ' user_input
     echo $user_input
 }
@@ -321,6 +322,9 @@ case $cmd in
 	sudo systemctl stop mongodb
 	sudo systemctl disable mongodb
     fi
+;;
+("test")
+    sudo python test_environment.py
 ;;
 ("status")
     controller_log='/home/ubuntu/ipop/logs/ctrl.log'
