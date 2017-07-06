@@ -9,7 +9,7 @@ Note: Current version only tested on Ubuntu 16.04 VM
 5. If visualizer option was selected run `start-visualizer` (Net Visualizer: http://localhost:8888/IPOP)
 6. Run `run`(Start up ipop processes on lxc nodes)
 #### Testing Environment
-*  `status` lxscript option aggregates controller and tincan logs on host machine under logs directory along with a file with information on the status of each lxc container
+*  `log` aggregates controller and tincan logs on host machine under logs directory along with a file with information on the status of each lxc container
 * `test` begins a ipop scale testing shell to carry out connectivity and performance testing built on tools such as iperf and ping
 #### Tear Down
 * Run `del` (Remove lxc containers running IPOP)
