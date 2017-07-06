@@ -87,11 +87,22 @@ def iperf_test(client_name, server_name):
 
     server_ip = get_ipop_ip(server)
 
-    iperf_client_command = ["iperf3", "-J", "t", "5", "-c", server_ip]
+    iperf_client_command = ["iperf3", "-J", "-t", "5", "-c", server_ip]
     iperf_server_command = ["iperf3", "-s", "-1", "-B", server_ip, "-D"]
     run(server, iperf_server_command)
     iperf_output = run(client, iperf_client_command)
     return iperf_output
+
+# def multicast_iperf_test(client_name):
+    # client = lxc.Container(client_name)
+
+    # # iperf_client_command = ["iperf", "-u", "-c", server_ip]
+    # # iperf_server_command = ["iperf3", "-s", "-1", "-B", server_ip, "-D"]
+
+    # list = lxc.list_containers(as_object=True)
+    # for node in list:
+        # if node.name not in ["default", client_name]:
+            # print(node.name)
 
 def pingall_test():
     test_results = []

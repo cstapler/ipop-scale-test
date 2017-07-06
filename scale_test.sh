@@ -6,7 +6,7 @@ IPOP_CONTROLLER="controller.Controller"
 HELP_FILE="./CONFIG.txt"
 TINCAN="./ipop-tincan"
 CONTROLLER="./Controllers"
-DEFAULT_LXC_PACKAGES='python psmisc iperf'
+DEFAULT_LXC_PACKAGES='python psmisc iperf iperf3'
 DEFAULT_LXC_CONFIG='/var/lib/lxc/default/config'
 DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
 DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
@@ -35,8 +35,8 @@ function options()
    kill                           : to kill IPOP node
    start-visualizer               : install and start up visualizer
    stop-visualizer                : stop all visualizer related processes
-   status                         : show statuses of scale test related elements
-   test                           : test ipop environment with ping and iperf test
+   logs                           : aggregate ipop logs under ./logs
+   test                           : open scale test shell to test ipop
 > ' user_input
     echo $user_input
 }
@@ -62,10 +62,10 @@ case $cmd in
     sudo chroot /var/lib/lxc/default/rootfs apt-get -y update
     sudo chroot /var/lib/lxc/default/rootfs apt-get -y install $DEFAULT_LXC_PACKAGES
     sudo chroot /var/lib/lxc/default/rootfs apt-get -y install software-properties-common python-software-properties
-    
-    # install python-pip and sleekXMPP
+
+    # install controller dependencies
     sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
-    sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil keyring
+    sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
     echo 'lxc.cgroup.devices.allow = c 10:200 rwm' | sudo tee --append $DEFAULT_LXC_CONFIG
     # use IP aliasing to bind turnserver to this ipv4 address
     sudo ifconfig $NET_DEV:0 $NET_IP4 up
@@ -75,37 +75,37 @@ case $cmd in
     ### configure network
     # replace symmetric NATs (MASQUERAGE) with full-cone NATs (SNAT)
     for i in $(sudo iptables -L POSTROUTING -t nat --line-numbers | awk '$2=="MASQUERADE" {print $1}'); do
-	sudo iptables -t nat -D POSTROUTING $i
+        sudo iptables -t nat -D POSTROUTING $i
     done
     sudo iptables -t nat -A POSTROUTING -o $NET_DEV -j SNAT --to-source $NET_IP4
     # open TCP ports (for ejabberd)
     for i in 5222 5269 5280; do
-	sudo iptables -A INPUT -p tcp --dport $i -j ACCEPT
-	sudo iptables -A OUTPUT -p tcp --dport $i -j ACCEPT
+        sudo iptables -A INPUT -p tcp --dport $i -j ACCEPT
+        sudo iptables -A OUTPUT -p tcp --dport $i -j ACCEPT
     done
     # open UDP ports (for STUN and TURN)
     for i in 3478 19302; do
-	sudo iptables -A INPUT -p udp --sport $i -j ACCEPT
-	sudo iptables -A OUTPUT -p udp --sport $i -j ACCEPT
+        sudo iptables -A INPUT -p udp --sport $i -j ACCEPT
+        sudo iptables -A OUTPUT -p udp --sport $i -j ACCEPT
     done
     # Install local ejabberd server
     sudo apt-get -y install ejabberd
     # prepare ejabberd server config file
     # restart ejabberd service
     if [ $OS_VERSION = '14.04' ]; then
-	sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
-	sudo ejabberdctl restart
+        sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
+        sudo ejabberdctl restart
     else
-	sudo apt-get -y install erlang-p1-stun
-	sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
-	sudo systemctl restart ejabberd.service
+        sudo apt-get -y install erlang-p1-stun
+        sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
+        sudo systemctl restart ejabberd.service
     fi
     # Wait for ejabberd service to start
     sleep 15
     # Create admin user
     sudo ejabberdctl register admin ejabberd password
 
-    #Python dependencies for visualizer and enviornment check
+    #Python dependencies for visualizer and ipop python tests
     sudo apt-get install python python-pip python-lxc
 
 ;;
@@ -117,7 +117,7 @@ case $cmd in
     echo "Downloading executable and code"
     # Check if IPOP controller executables already exists
     if [ -e $CONTROLLER ]; then
-	echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
+        echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
 	read user_input
 	if [ $user_input = 'F' ]; then
 		echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
@@ -213,9 +213,9 @@ case $cmd in
 	"
 	sudo cp -r ./Controllers/controller/ "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
 	sudo cp ./ipop-tincan "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-	sudo cp './ipop.bash' "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-	sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/ipop.bash;"
-	sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash config $i GroupVPN $NET_IP4 $isvisual $topology_param"
+	sudo cp './node_config.sh' "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
+	sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/node_config.sh;"
+	sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/node_config.sh config $i GroupVPN $NET_IP4 $isvisual $topology_param"
 	echo "Container node$i started"
 	sudo ejabberdctl register "node$i" ejabberd password
 	for j in $(seq $min $max); do
@@ -324,9 +324,9 @@ case $cmd in
     fi
 ;;
 ("test")
-    sudo python test_environment.py
+    sudo python ipoplxcutils/main.py
 ;;
-("status")
+("logs")
     controller_log='/home/ubuntu/ipop/logs/ctrl.log'
     tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
     echo -e "\n====== Starting Enviornment Checks ======"
