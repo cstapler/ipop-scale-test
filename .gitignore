@@ -4,6 +4,9 @@ IPOPNetVisualizer/
 Tincan/
 Controller/
 logs/
+controller/
+ipop-config.json
+auto_config_scale.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

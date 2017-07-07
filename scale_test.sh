@@ -3,7 +3,7 @@
 IPOP_HOME="/home/ubuntu/ipop"
 IPOP_TINCAN="$IPOP_HOME/ipop-tincan"
 IPOP_CONTROLLER="controller.Controller"
-HELP_FILE="./CONFIG.txt"
+HELP_FILE="./auto_config_scale.txt"
 TINCAN="./ipop-tincan"
 CONTROLLER="./Controllers"
 DEFAULT_LXC_PACKAGES='python psmisc iperf iperf3'
@@ -12,40 +12,54 @@ DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
 DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
 DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
 OS_VERSION=$(lsb_release -r -s)
+VPNMODE=$(cat $HELP_FILE | grep MODE | awk '{print $2}')
 min=$(cat $HELP_FILE | grep MIN | awk '{print $2}')
 max=$(cat $HELP_FILE | grep MAX | awk '{print $2}')
 nr_vnodes=$(cat $HELP_FILE | grep NR_VNODES | awk '{print $2}')
+NET_TEST=$(ip route get 8.8.8.8)
+NET_DEV=$(echo $NET_TEST | awk '{print $5}')
+NET_IP4=$(echo $NET_TEST | awk '{print $7}')
+
+
+function help()
+{
+    echo 'Enter from the following options:
+    config                         : install/prepare containers
+    lxc-create                     : create and start containers
+    lxc-start                      : start stopped containers
+    lxc-stop                       : stop containers
+    lxc-del                        : delete containers
+    ipop-run                       : to run IPOP node
+    ipop-kill                      : to kill IPOP node
+    ipop-tests                     : open scale test shell to test ipop
+    visualizer-start               : install and start up visualizer
+    visualizer-stop                : stop all visualizer related processes
+    capture-logs                   : aggregate ipop logs under ./logs
+    '
+}
 
 
 function options()
 {
-    read -p 'Enter from the following options:
-config                         : install/prepare containers
-lxc-create                     : create and start containers
-lxc-start                      : start stopped containers
-lxc-stop                       : stop containers
-lxc-del                        : delete containers
-ipop-run                       : to run IPOP node
-ipop-kill                      : to kill IPOP node
-visualizer-start               : install and start up visualizer
-visualizer-stop                : stop all visualizer related processes
-capture-logs                   : aggregate ipop logs under ./logs
-test                           : open scale test shell to test ipop
-> ' user_input
+    read -p "$(help) `echo $'\n> '`" user_input
     echo $user_input
 }
 
-function install()
+function config()
 {
-    NET_TEST=$(ip route get 8.8.8.8)
-    NET_DEV=$(echo $NET_TEST | awk '{print $5}')
-    NET_IP4=$(echo $NET_TEST | awk '{print $7}')
+    #Python dependencies for visualizer and ipop python tests
+    sudo apt-get install -y python python-pip python-lxc
+
+    #Install and start mongodb for use ipop python tests
+    sudo apt-get install mongodb
+
 
     #Prepare Tincan for compilation
     sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
     sudo apt-get update -y
     sudo apt-get -y install lxc g++-4.9
     sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 10
+
 
     # Install ubuntu OS in the lxc-container
     sudo lxc-create -n default -t ubuntu
@@ -54,8 +68,13 @@ function install()
     sudo chroot /var/lib/lxc/default/rootfs apt-get -y install software-properties-common python-software-properties
 
     # install controller dependencies
-    sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
-    sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
+    if [ $VPNMODE = "switch-mode" ]; then
+        pip install sleekxmpp pystun psutil
+    else
+        sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
+        sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
+    fi
+
     echo 'lxc.cgroup.devices.allow = c 10:200 rwm' | sudo tee --append $DEFAULT_LXC_CONFIG
     # use IP aliasing to bind turnserver to this ipv4 address
     sudo ifconfig $NET_DEV:0 $NET_IP4 up
@@ -95,23 +114,19 @@ function install()
     # Create admin user
     sudo ejabberdctl register admin ejabberd password
 
-    #Python dependencies for visualizer and ipop python tests
-    sudo apt-get install python python-pip python-lxc
+    }
 
-    #Install and start mongodb for use ipop python tests
-    sudo apt-get install mongodb
-    service mongodb start
-}
-
-function create
+function lxc-create
 {
     ### obtain network device and ip4 address
     NET_TEST=$(ip route get 8.8.8.8)
     NET_DEV=$(echo $NET_TEST | awk '{print $5}')
     NET_IP4=$(echo $NET_TEST | awk '{print $7}')
+    MODELINE=$(cat $HELP_FILE | grep MODE)
     echo -e "No of containers to be created::"
     read max
     echo -e "MIN 1\nMAX $max\nNR_VNODES $max" > $HELP_FILE
+    echo $MODELINE >> $HELP_FILE
 
     echo "Creating containers..."
     echo "Downloading executable and code"
@@ -205,25 +220,44 @@ function create
         read user_input
         topology_param="$topology_param $user_input"
     fi
-    for i in $(seq $min $max); do
-        sudo bash -c "
-        lxc-copy -n default -N node$i;
-        sudo lxc-start -n node$i --daemon;
-        sudo lxc-attach -n node$i -- bash -c 'sudo mkdir -p $IPOP_HOME; sudo mkdir /dev/net; sudo mknod /dev/net/tun c 10 200; sudo chmod 0666 /dev/net/tun';
-        "
-        sudo cp -r ./Controllers/controller/ "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-        sudo cp ./ipop-tincan "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-        sudo cp './node_config.sh' "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
-        sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/node_config.sh;"
-        sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/node_config.sh config $i GroupVPN $NET_IP4 $isvisual $topology_param"
-        echo "Container node$i started"
-        sudo ejabberdctl register "node$i" ejabberd password
-        for j in $(seq $min $max); do
-            if [ "$i" != "$j" ]; then
-                sudo ejabberdctl add_rosteritem "node$i" ejabberd "node$j" ejabberd "node$j" ipop both
-            fi
+
+    if [ $VPNMODE = "switch-mode" ]; then
+        sudo mkdir -p /dev/net
+        sudo rm /dev/net/tun
+        sudo mknod /dev/net/tun c 10 20
+        sudo chmod 0666 /dev/net/tun
+        sudo chmod +x ./ipop-tincan
+        sudo chmod +x ./node_config.sh
+        sudo cp -r ./Controllers/controller/ ./
+        sudo ./node_config.sh config 1 GroupVPN $NET_IP4 $isvisual $topology_param
+        sudo ejabberdctl register "node1" ejabberd password
+        for i in $(seq $min $max); do
+            sudo bash -c "
+            lxc-copy -n default -N node$i;
+            sudo lxc-start -n node$i --daemon;
+            "
         done
-    done
+    else
+        for i in $(seq $min $max); do
+            sudo bash -c "
+            lxc-copy -n default -N node$i;
+            sudo lxc-start -n node$i --daemon;
+            sudo lxc-attach -n node$i -- bash -c 'sudo mkdir -p $IPOP_HOME; sudo mkdir /dev/net; sudo mknod /dev/net/tun c 10 200; sudo chmod 0666 /dev/net/tun';
+            "
+            sudo cp -r ./Controllers/controller/ "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
+            sudo cp ./ipop-tincan "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
+            sudo cp './node_config.sh' "/var/lib/lxc/node$i/rootfs$IPOP_HOME"
+            sudo lxc-attach -n node$i -- bash -c "sudo chmod +x $IPOP_TINCAN; sudo chmod +x $IPOP_HOME/node_config.sh;"
+            sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/node_config.sh config $i GroupVPN $NET_IP4 $isvisual $topology_param"
+            echo "Container node$i started."
+            sudo ejabberdctl register "node$i" ejabberd password
+            for j in $(seq $min $max); do
+                if [ "$i" != "$j" ]; then
+                    sudo ejabberdctl add_rosteritem "node$i" ejabberd "node$j" ejabberd "node$j" ipop both
+                fi
+            done
+        done
+    fi
     sudo rm -r Controllers
     sudo rm -r Tincan
 }
@@ -232,7 +266,7 @@ function lxc-start()
     echo -e "\e[1;31mStarting containers.... \e[0m"
     for i in $(seq $min $max); do
         sudo bash -c "sudo lxc-start -n node$i --daemon;"
-        echo "Container node$i started!!"
+        echo "Container node$i started."
     done
 }
 
@@ -240,15 +274,16 @@ function lxc-del
 {
     echo -e "\e[1;31mContainer deletion inprogress .... \e[0m"
     for i in $(seq $min $max); do
-        for j in $(seq $min $max); do
-            if [ "$i" != "$j" ]; then
-                sudo ejabberdctl delete_rosteritem "node$i" ejabberd "node$j" ejabberd
-                sudo ejabberdctl unregister "node$i" ejabberd
-            fi  
-        done
+        if [ $VPNMODE = "group-vpn" ]; then
+            for j in $(seq $min $max); do
+                if [ "$i" != "$j" ]; then
+                    sudo ejabberdctl delete_rosteritem "node$i" ejabberd "node$j" ejabberd
+                    sudo ejabberdctl unregister "node$i" ejabberd
+                fi
+            done
+        fi
         sudo lxc-stop -n "node$i"
         sudo lxc-destroy -n "node$i"
-        echo "Container node$i deleted !!"
     done
 }
 
@@ -260,19 +295,27 @@ function lxc-stop
     done
 }
 function ipop-run
-{
-    echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
-    read user_input
-    if [ $user_input = '#' ]; then 
-        for i in $(seq $min $max); do
-            echo "Running node$i"
-            sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
-            sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
-        done
+    {
+    mkdir -p logs/
+
+    if [ $VPNMODE = "switch-mode" ]; then
+        echo "Running ipop in switchmode"
+        nohup ./ipop-tincan &> logs/ctrl.log &
+        nohup python -m controller.Controller -c ./ipop-config.json &> logs/tincan.log &
     else
-        echo "Running node$user_input"
-        sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
-        sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
+        echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
+        read user_input
+        if [ $user_input = '#' ]; then
+            for i in $(seq $min $max); do
+                echo "Running node$i"
+                sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+                sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
+            done
+        else
+            echo "Running node$user_input"
+            sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+            sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
+        fi
     fi
 }
 
@@ -283,7 +326,7 @@ function ipop-kill
     read user_input
     if [ $user_input = '#' ]; then 
         for i in $(seq $min $max); do
-            sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash kill"   
+            sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash kill"
         done
     else
         sudo lxc-attach -n node$user_input -- bash -c "sudo $IPOP_HOME/ipop.bash kill"
@@ -325,50 +368,52 @@ function visualizer-stop
 }
 
 function capture-logs {
-    controller_log='/home/ubuntu/ipop/logs/ctrl.log'
-    tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
-    echo -e "\n====== Starting Enviornment Checks ======"
-    for i in $(seq $min $max); do
-           mkdir -p logs/"node$i"
-           sudo lxc-info -n "node$i" > logs/"node$i"/container_status.txt
-           container_status=$(sudo lxc-ls --fancy | grep "node$i" | awk '{ print $2 }')
+    if [ $VPNMODE = "group-vpn" ]; then
+        controller_log='/home/ubuntu/ipop/logs/ctrl.log'
+        tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
+        for i in $(seq $min $max); do
+               mkdir -p logs/"node$i"
+               sudo lxc-info -n "node$i" > logs/"node$i"/container_status.txt
+               container_status=$(sudo lxc-ls --fancy | grep "node$i" | awk '{ print $2 }')
 
-           if [ "$container_status" = 'RUNNING' ] ; then
-                ctrl_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[c]ontroller.Controller"')
-                tin_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[i]pop-tincan"')
-                ctrl_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $controller_log ] && echo 'FOUND' || echo 'NOT FOUND'")
-                tin_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $tincan_log ] && echo 'FOUND' || echo 'NOT FOUND'")
+               if [ "$container_status" = 'RUNNING' ] ; then
+                    ctrl_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[c]ontroller.Controller"')
+                    tin_process_status=$(sudo lxc-attach -n "node$i" -- bash -c 'ps aux | grep "[i]pop-tincan"')
+                    ctrl_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $controller_log ] && echo 'FOUND' || echo 'NOT FOUND'")
+                    tin_log_status=$(sudo lxc-attach -n "node$i" -- bash -c "[ -f $tincan_log ] && echo 'FOUND' || echo 'NOT FOUND'")
 
-                if [ -n "$ctrl_process_status" ]; then
-                        echo "Controller is UP on node$i"
-                else
-                        echo "Controller is DOWN on node$i"
-                fi
+                    if [ -n "$ctrl_process_status" ]; then
+                            echo "Controller is UP on node$i"
+                    else
+                            echo "Controller is DOWN on node$i"
+                    fi
 
-                if [ -n "$tin_process_status" ]; then
-                        echo "Tincan is UP on node$i"
-                else
-                        echo "Tincan is DOWN on node$i"
-                fi
+                    if [ -n "$tin_process_status" ]; then
+                            echo "Tincan is UP on node$i"
+                    else
+                            echo "Tincan is DOWN on node$i"
+                    fi
 
-                if [ "$ctrl_log_status" = 'FOUND' ] ; then
-                        echo "Captured node$i controller log "
-                        sudo lxc-attach -n "node$i" -- bash -c "cat $controller_log" > logs/"node$i"/ctrl.log
-                else
-                        echo 'Controller log file not found'
-                fi
+                    if [ "$ctrl_log_status" = 'FOUND' ] ; then
+                            echo "Captured node$i controller log "
+                            sudo lxc-attach -n "node$i" -- bash -c "cat $controller_log" > logs/"node$i"/ctrl.log
+                    else
+                            echo 'Controller log file not found'
+                    fi
 
-                if [ "$tin_log_status" = 'FOUND' ] ; then
-                        echo "Captured node$i tincan log "
-                        sudo lxc-attach -n "node$i" -- bash -c "cat $tincan_log" > logs/"node$i"/tincan.log
-                else
-                        echo "Tincan log file for node$i not found"
-                fi
-           else
-                echo -e "node$i is not running"
-           fi
-    done
+                    if [ "$tin_log_status" = 'FOUND' ] ; then
+                            echo "Captured node$i tincan log "
+                            sudo lxc-attach -n "node$i" -- bash -c "cat $tincan_log" > logs/"node$i"/tincan.log
+                    else
+                            echo "Tincan log file for node$i not found"
+                    fi
+               else
+                    echo -e "node$i is not running"
+               fi
+        done
+    fi
 
+    echo -e "View $(pwd)/logs/ to see ctrl and tincan logs"
     visualizer_aggr=$(ps aux | grep "[a]ggr")
     visualizer_cent=$(ps aux | grep "[c]entVis")
 
@@ -377,49 +422,61 @@ function capture-logs {
     else
            echo 'Visualizer is Down'
     fi
-
-    echo -e "====== View $(pwd)/logs/ for more details on node statuses ======"
 }
 
-
-line=($(options))
-cmd=${line[0]}
-case $cmd in
-
-("config")
-    install
-;;
-("lxc-create")
-    create
-;;
-("lxc-start")
-    lxc-start
-;;
-("lxc-del")
-    lxc-del
-;;
-("lxc-stop")
-    lxc-stop
-;;
-("ipop-run")
-    ipop-run
-;;
-("ipop-kill")
-    ipop-kill
-;;
-("quit")
-    exit 0
-;;
-("visualizer-start")
-    visualizer-start
-;;
-("visualizer-stop")
-    visualizer-stop
-;;
-("test")
+function check-vpn-mode {
+    if [ -z $VPNMODE ] ; then
+        echo -e "Select vpn mode to test:\ngroup-vpn or switch-mode"
+        read VPNMODE
+        echo "MODE $VPNMODE" >> $HELP_FILE
+    fi
+}
+function ipop-tests {
     sudo python ipoplxcutils/main.py
-;;
-("capture-logs")
-    capture-logs
-;;
-esac
+}
+
+check-vpn-mode
+$@
+if [ -z $@ ] ; then
+    line=($(options))
+    cmd=${line[0]}
+    case $cmd in
+        ("config")
+            config
+        ;;
+        ("lxc-create")
+            lxc-create
+        ;;
+        ("lxc-start")
+            lxc-start
+        ;;
+        ("lxc-del")
+            lxc-del
+        ;;
+        ("lxc-stop")
+            lxc-stop
+        ;;
+        ("ipop-run")
+            ipop-run
+        ;;
+        ("ipop-kill")
+            ipop-kill
+        ;;
+        ("quit")
+            exit 0
+        ;;
+        ("visualizer-start")
+            visualizer-start
+        ;;
+        ("visualizer-stop")
+            visualizer-stop
+        ;;
+        ("ipop-tests")
+            sudo python ipoplxcutils/main.py
+        ;;
+        ("capture-logs")
+            capture-logs
+        ;;
+    esac
+fi
+
