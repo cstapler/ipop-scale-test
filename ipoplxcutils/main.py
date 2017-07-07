@@ -19,7 +19,7 @@ class ScaleTestCL(cmd.Cmd):
 
     def do_ping(self, arg):
         """Ping test: e.g. ping node1 node2 5
-           format: cmd (node to send ping) (node to receive ping) (ping count)
+           format: cmd (node to send ping) (node to receive ping) (packet count)
         """
         nodes = arg.split()
         if len(nodes) == 3:
@@ -33,12 +33,17 @@ class ScaleTestCL(cmd.Cmd):
 
     def do_pingall(self, arg):
         """Test ping between all active nodes
+            e.g. pingall 5
+            format: cmd (packet count)
         """
-        results = pingall_test()
+        packet_count = int(arg)
+        results = pingall_test(packet_count)
         self.ipopdb['ping'].insert_many(results)
 
     def do_iperf(self, arg):
-        """ Iperf test: e.g. iperf node1 node2
+        """ Iperf test:
+            e.g. iperf node1 node2
+            format: cmd (client node) (server node)
         """
         nodes = arg.split()
         if len(nodes) == 2:
@@ -104,9 +109,8 @@ def iperf_test(client_name, server_name):
         # if node.name not in ["default", client_name]:
             # print(node.name)
 
-def pingall_test():
+def pingall_test(packet_count):
     test_results = []
-    packet_count = 2
     containers = lxc.list_containers(as_object=True)
     for current_container in containers:
         name = current_container.name
@@ -117,11 +121,8 @@ def pingall_test():
                     ping_output = ping_test(name, other_name, packet_count)
                     parsed_ping = parse_ping(ping_output)
                     test_results.append(format_ping(parsed_ping, name, other_name))
-                    print("{0} -> {1}:".format(name, other_name)),
-                    if parsed_ping["packet_loss"] < 1:
-                        print("ping successful")
-                    else:
-                        print("ping unsuccessful")
+                    print("{0} -> {1} with packet loss {2}%" \
+                          .format(name, other_name,parsed_ping["packet_loss"]))
     return test_results
 
 def parse_ping(ping_lines):
@@ -131,13 +132,15 @@ def parse_ping(ping_lines):
     xmit_stats = stats[xsi[0]].split(",")
     pli = [x for x, data in enumerate(xmit_stats) if "packet loss" in data]
     packet_loss = float(xmit_stats[pli[0]].split("%")[0])
+    packet_count = float(xmit_stats[0].split("packets")[0])
     if packet_loss > 50:
-        return {"packet_loss": packet_loss}
+        return {"packet_loss": packet_loss, "packet_count": packet_count}
     timing_stats = stats[1].split("=")[1].split("/")
     ping_min = float(timing_stats[0])
     ping_avg = float(timing_stats[1])
     ping_max = float(timing_stats[2])
     return {"packet_loss": packet_loss,
+            "packet_count": packet_count,
             "ping_min": ping_min,
             "ping_avg": ping_avg,
             "ping_max": ping_max
