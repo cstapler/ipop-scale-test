@@ -24,11 +24,11 @@ NET_IP4=$(echo $NET_TEST | awk '{print $7}')
 function help()
 {
     echo 'Enter from the following options:
-    config                         : install/prepare containers
-    lxc-create                     : create and start containers
-    lxc-start                      : start stopped containers
-    lxc-stop                       : stop containers
-    lxc-del                        : delete containers
+    configure                      : install/prepare containers
+    containers-create              : create and start containers
+    containers-start               : start stopped containers
+    containers-stop                : stop containers
+    containers-del                 : delete containers
     ipop-run                       : to run IPOP node
     ipop-kill                      : to kill IPOP node
     ipop-tests                     : open scale test shell to test ipop
@@ -45,7 +45,7 @@ function options()
     echo $user_input
 }
 
-function config()
+function configure()
 {
     #Python dependencies for visualizer and ipop python tests
     sudo apt-get install -y python python-pip python-lxc
@@ -116,7 +116,7 @@ function config()
 
     }
 
-function lxc-create
+function containers-create
 {
     ### obtain network device and ip4 address
     NET_TEST=$(ip route get 8.8.8.8)
@@ -261,7 +261,7 @@ function lxc-create
     sudo rm -r Controllers
     sudo rm -r Tincan
 }
-function lxc-start()
+function containers-start()
 {
     echo -e "\e[1;31mStarting containers.... \e[0m"
     for i in $(seq $min $max); do
@@ -270,7 +270,7 @@ function lxc-start()
     done
 }
 
-function lxc-del
+function containers-del
 {
     echo -e "\e[1;31mContainer deletion inprogress .... \e[0m"
     for i in $(seq $min $max); do
@@ -287,7 +287,7 @@ function lxc-del
     done
 }
 
-function lxc-stop
+function containers-stop
 {
     echo -e "\e[1;31mStopping container... \e[0m"
     for i in $(seq $min $max); do
@@ -367,7 +367,7 @@ function visualizer-stop
     rm -rf ./IPOPNetVisualizer
 }
 
-function capture-logs {
+function logs {
     if [ $VPNMODE = "group-vpn" ]; then
         controller_log='/home/ubuntu/ipop/logs/ctrl.log'
         tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
@@ -441,20 +441,20 @@ if [ -z $@ ] ; then
     line=($(options))
     cmd=${line[0]}
     case $cmd in
-        ("config")
-            config
+        ("configure")
+            configure
         ;;
-        ("lxc-create")
-            lxc-create
+        ("containers-create")
+            containers-create
         ;;
-        ("lxc-start")
-            lxc-start
+        ("containers-start")
+            containers-start
         ;;
-        ("lxc-del")
-            lxc-del
+        ("containers-del")
+            containers-del
         ;;
-        ("lxc-stop")
-            lxc-stop
+        ("containers-stop")
+            containers-stop
         ;;
         ("ipop-run")
             ipop-run
@@ -474,8 +474,8 @@ if [ -z $@ ] ; then
         ("ipop-tests")
             sudo python ipoplxcutils/main.py
         ;;
-        ("capture-logs")
-            capture-logs
+        ("logs")
+            logs
         ;;
     esac
 fi
