@@ -51,7 +51,7 @@ function configure()
     sudo apt-get install -y python python-pip python-lxc
 
     #Install and start mongodb for use ipop python tests
-    sudo apt-get install mongodb
+    sudo apt-get -y install mongodb
 
 
     #Prepare Tincan for compilation
@@ -224,7 +224,7 @@ function containers-create
     if [ $VPNMODE = "switch-mode" ]; then
         sudo mkdir -p /dev/net
         sudo rm /dev/net/tun
-        sudo mknod /dev/net/tun c 10 20
+        sudo mknod /dev/net/tun c 10 200
         sudo chmod 0666 /dev/net/tun
         sudo chmod +x ./ipop-tincan
         sudo chmod +x ./node_config.sh
@@ -295,12 +295,12 @@ function containers-stop
     done
 }
 function ipop-run
-    {
+{
     mkdir -p logs/
 
     if [ $VPNMODE = "switch-mode" ]; then
         echo "Running ipop in switchmode"
-        nohup ./ipop-tincan &> logs/ctrl.log &
+        nohup sudo -b ./ipop-tincan &> logs/ctrl.log
         nohup python -m controller.Controller -c ./ipop-config.json &> logs/tincan.log &
     else
         echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
@@ -322,14 +322,18 @@ function ipop-run
 function ipop-kill
 {
     # kill IPOP tincan and controller
-    echo -e "\e[1;31mEnter # To KILL all containers or Enter the container number.  (e.g. Enter 1 to stop node1)\e[0m"
-    read user_input
-    if [ $user_input = '#' ]; then 
-        for i in $(seq $min $max); do
-            sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/ipop.bash kill"
-        done
+    if [ $VPNMODE = "switch-mode" ]; then
+        sudo ./node_config.sh kill
     else
-        sudo lxc-attach -n node$user_input -- bash -c "sudo $IPOP_HOME/ipop.bash kill"
+        echo -e "\e[1;31mEnter # To KILL all containers or Enter the container number.  (e.g. Enter 1 to stop node1)\e[0m"
+        read user_input
+        if [ $user_input = '#' ]; then
+            for i in $(seq $min $max); do
+                sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/node_config.sh kill"
+            done
+        else
+            sudo lxc-attach -n node$user_input -- bash -c "sudo $IPOP_HOME/node_config.sh kill"
+        fi
     fi
 }
 
