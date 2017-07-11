@@ -24,7 +24,7 @@ NET_IP4=$(echo $NET_TEST | awk '{print $7}')
 function help()
 {
     echo 'Enter from the following options:
-    configure                      : install/prepare containers
+    configure                      : install/prepare default container
     containers-create              : create and start containers
     containers-start               : start stopped containers
     containers-stop                : stop containers
@@ -114,7 +114,7 @@ function configure()
     # Create admin user
     sudo ejabberdctl register admin ejabberd password
 
-    }
+}
 
 function containers-create
 {
@@ -294,6 +294,7 @@ function containers-stop
         sudo lxc-stop -n "node$i"
     done
 }
+
 function ipop-run
 {
     mkdir -p logs/
@@ -358,9 +359,9 @@ function visualizer-start
     python -m virtualenv venv
     source ./venv/bin/activate
     python -m pip install -r requirements.txt
-    nohup python aggr.py &
+    nohup python aggr.py &> aggr.log &
     sleep 5s
-    nohup python centVis.py &
+    nohup python centVis.py &> centVis.log &
     cd ..
 }
 
@@ -441,7 +442,8 @@ function ipop-tests {
 
 check-vpn-mode
 $@
-if [ -z $@ ] ; then
+
+if [[ -z $@ ]] ; then
     line=($(options))
     cmd=${line[0]}
     case $cmd in
@@ -476,7 +478,7 @@ if [ -z $@ ] ; then
             visualizer-stop
         ;;
         ("ipop-tests")
-            sudo python ipoplxcutils/main.py
+            ipop-tests
         ;;
         ("logs")
             logs
