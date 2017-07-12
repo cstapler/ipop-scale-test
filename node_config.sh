@@ -49,7 +49,7 @@ case $1 in
                 "\n     }]"\
                 "\n  },"\
                 "\n  \"XmppClient\": {"\
-		"\n    \"xmppdetails\": [ "\
+		"\n    \"XmppDetails\": [ "\
 		"\n      { "\
                 "\n        \"Enabled\": true,"\
                 "\n        \"Username\": \"$CFx_xmpp_username\","\
