@@ -12,10 +12,10 @@ DEFAULT_TINCAN_REPO='https://github.com/ipop-project/Tincan'
 DEFAULT_CONTROLLERS_REPO='https://github.com/ipop-project/Controllers'
 DEFAULT_VISUALIZER_REPO='https://github.com/cstapler/IPOPNetVisualizer'
 OS_VERSION=$(lsb_release -r -s)
-VPNMODE=$(cat $HELP_FILE | grep MODE | awk '{print $2}')
-min=$(cat $HELP_FILE | grep MIN | awk '{print $2}')
-max=$(cat $HELP_FILE | grep MAX | awk '{print $2}')
-nr_vnodes=$(cat $HELP_FILE | grep NR_VNODES | awk '{print $2}')
+VPNMODE=$(cat $HELP_FILE 2>/dev/null | grep MODE | awk '{print $2}')
+min=$(cat $HELP_FILE 2>/dev/null | grep MIN | awk '{print $2}')
+max=$(cat $HELP_FILE 2>/dev/null | grep MAX | awk '{print $2}')
+nr_vnodes=$(cat $HELP_FILE 2>/dev/null | grep NR_VNODES | awk '{print $2}')
 NET_TEST=$(ip route get 8.8.8.8)
 NET_DEV=$(echo $NET_TEST | awk '{print $5}')
 NET_IP4=$(echo $NET_TEST | awk '{print $7}')
@@ -47,12 +47,18 @@ function options()
 
 function configure()
 {
+    # if argument is true mongodb and ejabberd won't be installed
+    is_external=$1
+
     #Python dependencies for visualizer and ipop python tests
     sudo apt-get install -y python python-pip python-lxc
 
-    #Install and start mongodb for use ipop python tests
-    sudo apt-get -y install mongodb
+    pip install pymongo
 
+    if [[ "$is_external" = true ]]; then
+        #Install and start mongodb for use ipop python tests
+        sudo apt-get -y install mongodb
+    fi
 
     #Prepare Tincan for compilation
     sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -97,23 +103,25 @@ function configure()
         sudo iptables -A INPUT -p udp --sport $i -j ACCEPT
         sudo iptables -A OUTPUT -p udp --sport $i -j ACCEPT
     done
-    # Install local ejabberd server
-    sudo apt-get -y install ejabberd
-    # prepare ejabberd server config file
-    # restart ejabberd service
-    if [ $OS_VERSION = '14.04' ]; then
-        sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
-        sudo ejabberdctl restart
-    else
-        sudo apt-get -y install erlang-p1-stun
-        sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
-        sudo systemctl restart ejabberd.service
-    fi
-    # Wait for ejabberd service to start
-    sleep 15
-    # Create admin user
-    sudo ejabberdctl register admin ejabberd password
 
+    if [[ ! ( "$is_external" = true ) ]]; then
+        # Install local ejabberd server
+        sudo apt-get -y install ejabberd
+        # prepare ejabberd server config file
+        # restart ejabberd service
+        if [ $OS_VERSION = '14.04' ]; then
+            sudo cp ./config/ejabberd.cfg /etc/ejabberd/ejabberd.cfg
+            sudo ejabberdctl restart
+        else
+            sudo apt-get -y install erlang-p1-stun
+            sudo cp ./config/ejabberd.yml /etc/ejabberd/ejabberd.yml
+            sudo systemctl restart ejabberd.service
+        fi
+        # Wait for ejabberd service to start
+        sleep 15
+        # Create admin user
+        sudo ejabberdctl register admin ejabberd password
+    fi
 }
 
 function containers-create
@@ -372,7 +380,8 @@ function visualizer-stop
     rm -rf ./IPOPNetVisualizer
 }
 
-function logs {
+function logs
+{
     if [ $VPNMODE = "group-vpn" ]; then
         controller_log='/home/ubuntu/ipop/logs/ctrl.log'
         tincan_log='/home/ubuntu/ipop/logs/tincan.log_0'
@@ -429,14 +438,32 @@ function logs {
     fi
 }
 
-function check-vpn-mode {
+function check-vpn-mode
+{
     if [ -z $VPNMODE ] ; then
         echo -e "Select vpn mode to test:\ngroup-vpn or switch-mode"
         read VPNMODE
         echo "MODE $VPNMODE" >> $HELP_FILE
     fi
 }
-function ipop-tests {
+
+function configure-external-node
+{
+    username=$1
+    hostname=$2
+
+    if [ -z "$hostname" ]; then
+        read -p "Enter hostname: " hostname
+    fi
+    if [ -z "$username" ]; then
+        read -p "Enter username: " username
+    fi
+
+    ssh "$username@$hostname" 'bash -s' < ./external/external_setup.sh
+}
+
+function ipop-tests
+{
     sudo python ipoplxcutils/main.py
 }
 
