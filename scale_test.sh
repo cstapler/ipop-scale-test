@@ -53,9 +53,9 @@ function configure()
     #Python dependencies for visualizer and ipop python tests
     sudo apt-get install -y python python-pip python-lxc
 
-    pip install pymongo
+    sudo pip install pymongo
 
-    if [[ "$is_external" = true ]]; then
+    if [[ "$is_external" = "external" ]]; then
         #Install and start mongodb for use ipop python tests
         sudo apt-get -y install mongodb
     fi
@@ -75,7 +75,7 @@ function configure()
 
     # install controller dependencies
     if [ $VPNMODE = "switch-mode" ]; then
-        pip install sleekxmpp pystun psutil
+        sudo pip install sleekxmpp pystun psutil
     else
         sudo chroot /var/lib/lxc/default/rootfs apt-get -y install 'python-pip'
         sudo chroot /var/lib/lxc/default/rootfs pip install 'sleekxmpp' pystun psutil
@@ -104,7 +104,7 @@ function configure()
         sudo iptables -A OUTPUT -p udp --sport $i -j ACCEPT
     done
 
-    if [[ ! ( "$is_external" = true ) ]]; then
+    if [[ ! ( "$is_external" = "external" ) ]]; then
         # Install local ejabberd server
         sudo apt-get -y install ejabberd
         # prepare ejabberd server config file
@@ -126,23 +126,57 @@ function configure()
 
 function containers-create
 {
-    ### obtain network device and ip4 address
+    # obtain network device and ip4 address
     NET_TEST=$(ip route get 8.8.8.8)
     NET_DEV=$(echo $NET_TEST | awk '{print $5}')
     NET_IP4=$(echo $NET_TEST | awk '{print $7}')
-    MODELINE=$(cat $HELP_FILE | grep MODE)
-    echo -e "No of containers to be created::"
-    read max
-    echo -e "MIN 1\nMAX $max\nNR_VNODES $max" > $HELP_FILE
-    echo $MODELINE >> $HELP_FILE
 
-    echo "Creating containers..."
-    echo "Downloading executable and code"
-    # Check if IPOP controller executables already exists
-    if [ -e $CONTROLLER ]; then
-        echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
-        read user_input
-        if [ $user_input = 'F' ]; then
+    MODELINE=$(cat $HELP_FILE | grep MODE)
+
+    # function parameters
+    container_count=$1
+    controller_repo_url_arg=$2
+    tincan_repo_url_arg=$3
+    visualizer_arg=$4
+    is_external=$5
+
+    if [ -z "$container_count" ]; then
+        echo -e "No of containers to be created::"
+        read max
+        min=1
+        echo -e "MIN $min\nMAX $max\nNR_VNODES $max" > $HELP_FILE
+        echo $MODELINE >> $HELP_FILE
+    else
+        max=$container_count
+        min=1
+        echo -e "MIN 1\nMAX $max\nNR_VNODES $max" > $HELP_FILE
+        echo $MODELINE >> $HELP_FILE
+    fi
+
+    if [ -z "$controller_repo_url_arg" ]; then
+        echo "Downloading executable and code"
+        # Check if IPOP controller executables already exists
+        if [ -e $CONTROLLER ]; then
+            echo "Controller modules already present in the current path.Do you want to continue with container creation (T/F).."
+            read user_input
+            if [ $user_input = 'F' ]; then
+                echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
+                read githuburl_ctrl
+                if [ -z "$githuburl_ctrl" ]; then
+                    githuburl_ctrl=$DEFAULT_CONTROLLERS_REPO
+                fi
+                git clone $githuburl_ctrl
+                echo -e "Do you want to continue using master branch(Y/N):"
+                read user_input
+                if [ $user_input = 'N' ]; then
+                    echo -e "Enter git repo branch name:"
+                    read github_branch
+                    cd Controllers
+                    git checkout $github_branch
+                    cd ..
+                fi
+            fi
+        else
             echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
             read githuburl_ctrl
             if [ -z "$githuburl_ctrl" ]; then
@@ -160,76 +194,88 @@ function containers-create
             fi
         fi
     else
-        echo -e "\e[1;31mEnter IPOP Controller github URL(default: $DEFAULT_CONTROLLERS_REPO) \e[0m"
-        read githuburl_ctrl
-        if [ -z "$githuburl_ctrl" ]; then
-            githuburl_ctrl=$DEFAULT_CONTROLLERS_REPO
-        fi
-        git clone $githuburl_ctrl
-        echo -e "Do you want to continue using master branch(Y/N):"
-        read user_input
-        if [ $user_input = 'N' ]; then
-            echo -e "Enter git repo branch name:"
-            read github_branch
-            cd Controllers
-            git checkout $github_branch
-            cd ..
-        fi
+        git clone $controller_repo_url_arg
     fi
-    # Check whether Tincan executables exists in the current path
-    if [ -e $TINCAN ]; then
-        echo "Tincan binary present, aborting build script execution!!!"
-    else
-        echo "***************Building Tincan binary***************"
-        echo -e "\e[1;31mEnter github URL for Tincan (default: $DEFAULT_TINCAN_REPO) \e[0m"
-        read github_tincan
-        if [ -z "$github_tincan" ] ; then
-            github_tincan=$DEFAULT_TINCAN_REPO
-        fi
 
-        git clone $github_tincan
-        echo -e "Do you want to continue using master branch(Y/N):"
-        read user_input
-        if [ $user_input = 'N' ]; then
-            echo -e "Enter git repo branch name:"
-            read github_branch
-            cd Tincan
-            git checkout $github_branch
-            cd ..
+    if [ -z "$tincan_repo_url_arg" ]; then
+        # Check whether Tincan executables exists in the current path
+        if [ -e $TINCAN ]; then
+            echo "Tincan binary present, aborting build script execution!!!"
+        else
+            echo "***************Building Tincan binary***************"
+            echo -e "\e[1;31mEnter github URL for Tincan (default: $DEFAULT_TINCAN_REPO) \e[0m"
+            read github_tincan
+            if [ -z "$github_tincan" ] ; then
+                github_tincan=$DEFAULT_TINCAN_REPO
+            fi
+
+            git clone $github_tincan
+            echo -e "Do you want to continue using master branch(Y/N):"
+            read user_input
+            if [ $user_input = 'N' ]; then
+                echo -e "Enter git repo branch name:"
+                read github_branch
+                cd Tincan
+                git checkout $github_branch
+                cd ..
+            fi
+            cd ./Tincan/trunk/build/
+            make
+            cd ../../..
+            cp ./Tincan/trunk/out/release/x64/ipop-tincan .
         fi
-        cd ./Tincan/trunk/build/
+    else
+        git clone $tincan_repo_url_arg
+        cd ./Tincan/trunk/build
         make
         cd ../../..
         cp ./Tincan/trunk/out/release/x64/ipop-tincan .
     fi
-    echo -e "\e[1;31Do you want to set default IPOP network configuration(Y/N): \e[0m"
-    read user_input
-    echo -e "\e[1;31mEnable Visulaization (T/F): \e[0m"
-    read visualizer
-    if [ $visualizer = 'T' ]; then
-        isvisual=true
+
+    if [ -z "$visualizer_arg" ]; then
+        echo -e "\e[1;31mEnable Visulaization (T/F): \e[0m"
+        read visualizer
+        if [ $visualizer = 'T' ]; then
+            isvisual=true
+        else
+            isvisual=false
+        fi
     else
-        isvisual=false
-    fi
-    if [ $user_input = 'Y' ]; then 
-        topology_param="1 0 0 3"
-    else
-        topology_param=""
-        echo -e "\e[1;31m Enter No of Successor Links: \e[0m"
-        read user_input
-        topology_param="$topology_param $user_input"
-        echo -e "\e[1;31m Enter Max No of Chords Links: \e[0m"
-        read user_input
-        topology_param="$topology_param $user_input"
-        echo -e "\e[1;31m Enter Max No of Ondemand Links: \e[0m"
-        read user_input
-        topology_param="$topology_param $user_input"
-        echo -e "\e[1;31m Enter Max No of Inbound Links: \e[0m"
-        read user_input
-        topology_param="$topology_param $user_input"
+        if [ "$visualizer_arg" = 'T' ]; then
+            isvisual=true
+        else
+            isvisual=false
+        fi
     fi
 
-    if [ $VPNMODE = "switch-mode" ]; then
+    if [[ ! ( "$is_external" = true ) ]]; then
+        echo -e "\e[1;31Do you want to set default IPOP network configuration(Y/N): \e[0m"
+        read user_input
+
+        if [ $user_input = 'Y' ]; then
+            topology_param="1 0 0 3"
+        else
+            topology_param=""
+            echo -e "\e[1;31m Enter No of Successor Links: \e[0m"
+            read user_input
+            topology_param="$topology_param $user_input"
+            echo -e "\e[1;31m Enter Max No of Chords Links: \e[0m"
+            read user_input
+            topology_param="$topology_param $user_input"
+            echo -e "\e[1;31m Enter Max No of Ondemand Links: \e[0m"
+            read user_input
+            topology_param="$topology_param $user_input"
+            echo -e "\e[1;31m Enter Max No of Inbound Links: \e[0m"
+            read user_input
+            topology_param="$topology_param $user_input"
+        fi
+    else
+       topology_param="1 0 0 3"
+    fi
+
+    echo "VPN MODE: $VPNMODE"
+
+    if [[ "$VPNMODE" = "switch-mode" ]]; then
         sudo mkdir -p /dev/net
         sudo rm /dev/net/tun
         sudo mknod /dev/net/tun c 10 200
@@ -237,8 +283,15 @@ function containers-create
         sudo chmod +x ./ipop-tincan
         sudo chmod +x ./node_config.sh
         sudo cp -r ./Controllers/controller/ ./
-        sudo ./node_config.sh config 1 GroupVPN $NET_IP4 $isvisual $topology_param
-        sudo ejabberdctl register "node1" ejabberd password
+
+        if [[ ! ( "$is_external" = true ) ]]; then
+            sudo ./node_config.sh config 1 GroupVPN $NET_IP4 $isvisual $topology_param
+            sudo ejabberdctl register "node1" ejabberd password
+        else
+            sudo ./node_config.sh config 2 GroupVPN $NET_IP4 $isvisual $topology_param
+            sudo ejabberdctl register "node2" ejabberd password
+        fi
+
         for i in $(seq $min $max); do
             sudo bash -c "
             lxc-copy -n default -N node$i;
@@ -310,7 +363,7 @@ function ipop-run
     if [ $VPNMODE = "switch-mode" ]; then
         echo "Running ipop in switchmode"
         nohup sudo -b ./ipop-tincan &> logs/ctrl.log
-        nohup python -m controller.Controller -c ./ipop-config.json &> logs/tincan.log &
+        nohup sudo -b python -m controller.Controller -c ./ipop-config.json &> logs/tincan.log
     else
         echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
         read user_input
@@ -451,15 +504,20 @@ function configure-external-node
 {
     username=$1
     hostname=$2
+    xmpp_address=$3
 
-    if [ -z "$hostname" ]; then
-        read -p "Enter hostname: " hostname
-    fi
     if [ -z "$username" ]; then
         read -p "Enter username: " username
     fi
+    if [ -z "$hostname" ]; then
+        read -p "Enter hostname: " hostname
+    fi
+    if [ -z "$xmpp_address" ]; then
+        read -p "Enter xmpp server address: " xmpp_address
+    fi
 
-    ssh "$username@$hostname" 'bash -s' < ./external/external_setup.sh
+    scp ./external/external_setup.sh $username@$hostname:
+    ssh "$username@$hostname" -t "sudo ./external_setup.sh $xmpp_address"
 }
 
 function ipop-tests
