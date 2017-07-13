@@ -39,13 +39,13 @@ function help()
 }
 
 
-function options()
+function options
 {
     read -p "$(help) `echo $'\n> '`" user_input
     echo $user_input
 }
 
-function configure()
+function configure
 {
     # if argument is true mongodb and ejabberd won't be installed
     is_external=$1
@@ -55,7 +55,7 @@ function configure()
 
     sudo pip install pymongo
 
-    if [[ "$is_external" = "external" ]]; then
+    if [[ ( "$is_external" = true ) ]]; then
         #Install and start mongodb for use ipop python tests
         sudo apt-get -y install mongodb
     fi
@@ -102,9 +102,9 @@ function configure()
     for i in 3478 19302; do
         sudo iptables -A INPUT -p udp --sport $i -j ACCEPT
         sudo iptables -A OUTPUT -p udp --sport $i -j ACCEPT
-    done
+  done
 
-    if [[ ! ( "$is_external" = "external" ) ]]; then
+    if [[ ! ( "$is_external" = true ) ]]; then
         # Install local ejabberd server
         sudo apt-get -y install ejabberd
         # prepare ejabberd server config file
@@ -322,7 +322,8 @@ function containers-create
     sudo rm -r Controllers
     sudo rm -r Tincan
 }
-function containers-start()
+
+function containers-start
 {
     echo -e "\e[1;31mStarting containers.... \e[0m"
     for i in $(seq $min $max); do
@@ -358,6 +359,8 @@ function containers-stop
 
 function ipop-run
 {
+   container_to_run=$1
+
     mkdir -p logs/
 
     if [ $VPNMODE = "switch-mode" ]; then
@@ -365,6 +368,19 @@ function ipop-run
         nohup sudo -b ./ipop-tincan &> logs/ctrl.log
         nohup sudo -b python -m controller.Controller -c ./ipop-config.json &> logs/tincan.log
     else
+      if [[ -y "$container_to_run" ]]; then
+        if [ "$container_to_run" = '#' ]; then
+            for i in $(seq $min $max); do
+                echo "Running node$i"
+                sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+                sudo lxc-attach -n "node$i" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
+            done
+        else
+            echo "Running node$container_to_run"
+            sudo lxc-attach -n "node$container_to_run" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
+            sudo lxc-attach -n "node$container_to_run" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
+        fi
+      else
         echo -e "\e[1;31mEnter # To RUN all containers or Enter the container number.  (e.g. Enter 1 to start node1)\e[0m"
         read user_input
         if [ $user_input = '#' ]; then
@@ -378,15 +394,26 @@ function ipop-run
             sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && ./ipop-tincan &'
             sudo lxc-attach -n "node$user_input" -- nohup bash -c 'cd /home/ubuntu/ipop/ && python -m controller.Controller -c ./ipop-config.json &'
         fi
+      fi
     fi
 }
 
 function ipop-kill
 {
+    container_to_kill=$1
     # kill IPOP tincan and controller
     if [ $VPNMODE = "switch-mode" ]; then
         sudo ./node_config.sh kill
     else
+      if [[ -z "$container_to_kill" ]]; then
+          if [ $container_to_kill = '#' ]; then
+            for i in $(seq $min $max); do
+                sudo lxc-attach -n node$i -- bash -c "sudo $IPOP_HOME/node_config.sh kill"
+            done
+          else
+            sudo lxc-attach -n node$container_to_kill -- bash -c "sudo $IPOP_HOME/node_config.sh kill"
+          fi
+      else
         echo -e "\e[1;31mEnter # To KILL all containers or Enter the container number.  (e.g. Enter 1 to stop node1)\e[0m"
         read user_input
         if [ $user_input = '#' ]; then
@@ -396,6 +423,7 @@ function ipop-kill
         else
             sudo lxc-attach -n node$user_input -- bash -c "sudo $IPOP_HOME/node_config.sh kill"
         fi
+      fi
     fi
 }
 
@@ -570,4 +598,3 @@ if [[ -z $@ ]] ; then
         ;;
     esac
 fi
-
